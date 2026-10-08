@@ -1,0 +1,78 @@
+# OdontoScan AI - orquestração local (protótipo de pesquisa)
+#
+#   docker compose up --build
+#
+# Backend:  http://localhost:8000  (docs em /docs)
+# Frontend: http://localhost:3000
+#
+# ATENÇÃO: o frontend embute NEXT_PUBLIC_API_URL em BUILD TIME (o navegador
+# acessa o backend pelo host, não pela rede interna do compose).
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: odontoscan-backend:local
+    container_name: odontoscan-backend
+    ports:
+      - "8000:8000"
+    environment:
+      MAX_UPLOAD_MB: "15"
+      CONF_THRESHOLD: "0.40"
+      NMS_IOU: "0.45"
+      MAX_CONCURRENCY: "2"
+      MODEL_PATH: "models/liodon_dental_panoramic.onnx"
+      ALLOW_STUB_FALLBACK: "true"
+      CORS_ORIGINS: "http://localhost:${FRONTEND_PORT:-3000}"
+      AUTO_CROP_PANORAMA: "true"
+      CROP_MIN_GAIN: "0.05"
+      SUPPRESS_RADIOPAQUE: "false"
+      RADIOPAQUE_THRESHOLD: "0.35"
+      RADIOPAQUE_INTENSITY: "200"
+      # --- Etapa 4: autenticação + histórico (ADR-0007) ---
+      DATABASE_URL: "sqlite:///./data/odontoscan.db"
+      # OBRIGATÓRIO e sem default: o compose falha se não estiver definido.
+      # Defina no `.env` da raiz (não versionado). Gere com:
+      #   python -c "import secrets; print(secrets.token_urlsafe(48))"
+      JWT_SECRET: "${JWT_SECRET:?defina JWT_SECRET no arquivo .env (veja .env.example)}"
+      ACCESS_TOKEN_MINUTES: "15"
+      REFRESH_TOKEN_DAYS: "7"
+      LOGIN_RATE_LIMIT: "5"
+      LOGIN_IP_RATE_LIMIT: "20"
+    volumes:
+      # Persiste o SQLite (histórico) entre reinícios do container.
+      - odontoscan-data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8000"
+    image: odontoscan-frontend:local
+    container_name: odontoscan-frontend
+    ports:
+      # Host configurável (default 3000). Conflito? defina FRONTEND_PORT no .env
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: "production"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  # Histórico (SQLite). Remova com `docker compose down -v` para zerar os dados.
+  odontoscan-data:

@@ -1,0 +1,139 @@
+Você é um Arquiteto de Software Sênior especializado em visão computacional aplicada à saúde.
+Projete e gere o código inicial de um PROTÓTIPO DE PESQUISA de apoio à decisão para análise de
+radiografias odontológicas panorâmicas. Este software NÃO é dispositivo médico validado.
+
+Regra inegociável: todo artefato (README, UI, payload) deve declarar:
+"Protótipo de pesquisa. Relatório sugestivo gerado por IA para apoio à decisão. NÃO realiza
+diagnóstico e NÃO substitui a avaliação de um cirurgião-dentista."
+
+Fluxo: upload -> validação -> pré-processamento -> inferência -> mapeamento de regras clínicas
+-> overlay visual + relatório.
+
+====================================================================
+1. DECISÕES TECNOLÓGICAS (obrigatórias; NÃO ofereça alternativas)
+====================================================================
+- Backend: Python 3.11 + FastAPI + Uvicorn.
+- Inferência: ONNX Runtime (escolhido para evitar a AGPL-3.0 do Ultralytics). Exportar o modelo para ONNX.
+  Se o usuário optar por Ultralytics YOLO, documentar no README que uso comercial exige
+  Ultralytics Enterprise License (a AGPL-3.0 obriga abrir todo o código-fonte do produto).
+- Imagem: OpenCV, Pillow e pydicom (aceitar DICOM, JPEG e PNG).
+- Frontend: Next.js + TypeScript + Tailwind CSS + Canvas (react-konva) para overlay.
+- Comunicação: REST multipart/form-data -> JSON.
+- Empacotamento: Docker + docker-compose. Testes: pytest + httpx.
+
+====================================================================
+2. MODELO E CLASSES (respeite a realidade do domínio)
+====================================================================
+- Dataset-base: DENTEX (MICCAI 2023), com EXATAMENTE 4 classes diagnósticas:
+  impacted, caries, deep_caries, periapical_lesion.
+- NÃO inclua bone_loss: essa classe NÃO existe no DENTEX. Trate-a como item de ROADMAP,
+  exigindo modelo/dataset periodontal próprio.
+- Licença do DENTEX: CC BY-NC-SA 4.0 (NÃO comercial). Usar apenas em pesquisa/interno;
+  para produto comercial, substituir o dataset e revisar licenças.
+- Limitação clínica a documentar: radiografia panorâmica NÃO é exame de escolha para
+  confirmar cárie e lesão periapical; há consenso na literatura (DENTEX) sobre isso.
+- Mapeie a classe SEMPRE via model.names[cls_id]; NUNCA hardcode a ordem dos IDs.
+- Incluir confidence threshold configurável (default 0.35) e NMS (IoU default 0.45).
+
+====================================================================
+3. PRÉ-PROCESSAMENTO E COORDENADAS
+====================================================================
+- Validar MIME, extensão e tamanho máximo (ex.: 15 MB); rejeitar arquivos corrompidos.
+- Suportar DICOM (aplicar windowing) e converter para RGB.
+- Letterbox resize para 640x640; registrar escala e offset usados.
+- Retornar bbox em coordenadas normalizadas [0,1] relativo à imagem ORIGINAL E em pixels.
+- O frontend reescala pela dimensão real, garantindo alinhamento do overlay.
+
+====================================================================
+4. MATRIZ DE REGRAS CLÍNICAS (conduta de SUPORTE, nunca prescrição)
+====================================================================
+Para cada classe detectada, o backend preenche: name_pt, urgency e conduct (texto de apoio).
+Use verbos de apoio ("avaliar", "considerar"), nunca imperativos.
+
+- impacted           -> "Dente Impactado/Incluso"
+  urgency: eletiva. conduct: "Avaliar indicação cirúrgica (Bucomaxilofacial) ou acompanhamento
+  radiográfico se não houver reabsorção dos dentes vizinhos."
+- caries             -> "Cárie Dentária"
+  urgency: eletiva. conduct: "Correlacionar com exame clínico. Considerar restauração em resina
+  composta e/ou aplicação de flúor se incipiente."
+- deep_caries        -> "Cárie Profunda"
+  urgency: prioritária. conduct: "Risco de envolvimento pulpar. Avaliar necessidade de tratamento
+  endodôntico."
+- periapical_lesion  -> "Lesão/Infecção Periapical"
+  urgency: urgente. conduct: "Avaliar tratamento endodôntico; em casos avançados com fratura
+  radicular, considerar exodontia e planejamento de implante."
+- (bone_loss)        -> FORA DE ESCOPO deste MVP; apenas citar como roadmap.
+
+Inclua sempre o disclaimer completo no payload e na UI.
+
+====================================================================
+5. API
+====================================================================
+- POST /api/v1/analyze  (multipart/form-data, campo "image")
+  -> 200 com payload estruturado descrito no item 7.
+- GET /healthz
+- Erros padronizados: 400 (arquivo inválido), 413 (grande demais), 415 (formato não suportado),
+  422 (entrada inválida), 500 (falha de inferência).
+- Carregar o modelo UMA vez no startup (evento lifespan).
+- Executar inferência bloqueante em threadpool (run_in_threadpool) ou fila; limitar concorrência.
+- Registrar model_version e inference_ms em cada resposta (rastreabilidade).
+
+====================================================================
+6. SEGURANÇA, REGULAÇÃO E PRIVACIDADE
+====================================================================
+- SaMD: reconhecer que software de apoio diagnóstico tende à Classe de risco II ou superior
+  (ANVISA RDC 657/2022 e RDC 751/2022). Disclaimer NÃO dispensa notificação/registro nem o
+  dossiê técnico (IEC 62304/14971, justificativa do algoritmo de IA, origem e tamanho dos dados
+  de treino). Listar isso como requisitos no README.
+- LGPD: dado de saúde é sensível (Art. 11). Prever consentimento, cifragem em trânsito/repouso,
+  minimização, política de retenção e descarte.
+- Por padrão NÃO persistir imagens; se persistir, exigir consentimento e trilha de auditoria.
+- Autenticação por perfil (cirurgião-dentista/CRO), rate limiting e validação estrita de upload.
+- Nunca colocar segredos, tokens ou chaves no código.
+
+====================================================================
+7. ENTREGAS (em fases, cada uma com critério de aceite)
+====================================================================
+- Fase 0 (README): escopo, limitações clínicas, licenças (DENTEX NC / Ultralytics AGPL),
+  requisitos regulatórios e status "protótipo". Aceite: limitações e licenças explícitas.
+- Fase 1: árvore de diretórios /backend e /frontend. Aceite: módulos coerentes.
+- Fase 2: requirements.txt (fastapi, uvicorn, onnxruntime, opencv-python, pillow, pydicom,
+  numpy, pydantic), pyproject/Dockerfile/docker-compose. Aceite: build funciona.
+- Fase 3: main.py + módulos (inference.py, preprocessing.py, clinical_rules.py, schemas.py).
+  Aceite: /api/v1/analyze responde com modelo stub (interfaces prontas para modelo real .onnx).
+- Fase 4: exemplo do payload JSON + testes pytest (endpoint, validação de upload, mapeamento
+  de classes e do disclaimer). Aceite: pytest verde.
+- Fase 5 (frontend): upload + overlay Canvas das boxes + painel de relatório + disclaimer fixo
+  + aviso de limitação. Aceite: overlay alinhado às coordenadas normalizadas.
+
+Exemplo do payload de retorno (Fase 4):
+{
+  "disclaimer": "Esta análise é um relatório sugestivo gerado por Inteligência Artificial para
+  suporte à decisão clínica. O diagnóstico final e a conduta terapêutica são de responsabilidade
+  exclusiva do cirurgião-dentista.",
+  "model_version": "prototype-onnx-0.1.0",
+  "inference_ms": 412,
+  "image": { "width": 2880, "height": 1440, "format": "png" },
+  "findings": [
+    {
+      "class_id": 1,
+      "class_name": "periapical_lesion",
+      "label_pt": "Lesão/Infecção Periapical",
+      "confidence": 0.83,
+      "urgency": "urgente",
+      "conduct": "Avaliar tratamento endodôntico; em casos avançados com fratura radicular,
+                   considerar exodontia e planejamento de implante.",
+      "bbox_normalized": [0.412, 0.531, 0.470, 0.602],
+      "bbox_pixels": [1186, 764, 1353, 867]
+    }
+  ]
+}
+
+====================================================================
+8. REGRAS GERAIS DE CÓDIGO
+====================================================================
+- Código modular, tipado (Pydantic v2), sem comentários supérfluos.
+- Deixar claro quando algo é STUB/mock (ex.: ausência do modelo .onnx real).
+- Não prometer "pronto para produção": é protótipo.
+- Comentar no código as decisões de licença e regulatórias (SaMD, LGPD).
+- Aja como desenvolvedor experiente e explique brevemente as escolhas de arquitetura.

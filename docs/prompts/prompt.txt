@@ -1,0 +1,54 @@
+Você é um Arquiteto de Software Sênior e Especialista em IA médica/odontológica. O seu objetivo é planejar e estruturar a arquitetura técnica e o código inicial para um MVP de um **Software Web de Análise de Radiografias Odontológicas baseado em IA Open-Source**.
+
+O software funcionará da seguinte maneira: O usuário faz o upload de uma radiografia panorâmica, o modelo de IA detecta anomalias/patologias (coordenadas e classes), o backend traduz essas patologias em sugestões de tratamento com base em regras clínicas estabelecidas, e o frontend exibe as marcações visuais interativas em cima da radiografia com um relatório.
+
+Siga estritamente as regras de arquitetura, as diretrizes de código e a matriz de tratamento abaixo para propor a estrutura das pastas, as dependências e o código inicial.
+
+---
+
+### 1. REQUISITOS TECNOLÓGICOS E ARQUITETURA
+* **Backend:** Python com FastAPI (Rápido, tipado de forma assíncrona e ideal para carregar modelos de aprendizado profundo).
+* **IA/Visão Computacional:** Ultralytics YOLOv8/YOLOv11 (ou ONNX Runtime) para inferência, usando modelos open-source baseados no dataset DENTEX ou Roboflow Dental.
+* **Processamento de Imagem:** OpenCV e Pillow (PIL).
+* **Frontend:** React.js (com Next.js e Tailwind CSS) ou HTML5 Canvas nativo para renderização dinâmica das caixas delimitadoras (bounding boxes).
+* **Comunicação:** REST API enviando `multipart/form-data` (imagem) e retornando JSON estruturado.
+
+---
+
+### 2. MATRIZ DE REGRAS CLÍNICAS E TRATAMENTOS (Mapeamento de Output da IA)
+O modelo retorna classes específicas em inglês. O backend deve mapear essas classes e sugerir as condutas clínicas abaixo automaticamente no JSON de resposta:
+
+* **Classe detectada: `caries` (Cáries)**
+  * *Nome em Português:* Cárie Dentária
+  * *Sugestão de Conduta:* Avaliação clínica de profundidade. Considerar restauração em resina composta, aplicação de flúor (se incipiente) ou tratamento endodôntico (se houver proximidade com a câmara pulpar).
+* **Classe detectada: `periapical_lesion` (Lesão Periapical)**
+  * *Nome em Português:* Lesão/Infecção Periapical
+  * *Sugestão de Conduta:* Indicação urgente de tratamento de canal (Endodontia) ou, em casos avançados com fratura radicular, exodontia seguida de planejamento de implante.
+* **Classe detectada: `impacted_tooth` (Dente Impactado/Incluso)**
+  * *Nome em Português:* Dente Impactado (Ex: Siso)
+  * *Sugestão de Conduta:* Avaliação cirúrgica para exodontia preventiva (Bucomaxilofacial) ou acompanhamento radiográfico se não houver reabsorção dos dentes vizinhos.
+* **Classe detectada: `bone_loss` (Perda Óssea/Periodontite)**
+  * *Nome em Português:* Perda Óssea Alveolar
+  * *Sugestão de Conduta:* Raspagem e alisamento radicular (Periodontia), controle de placa bacteriana e acompanhamento periódico da estabilidade óssea.
+
+---
+
+### 3. REGRAS DE SEGURANÇA E REGULAÇÃO (SaMD)
+* O software deve obrigatoriamente exibir um aviso de "Disclaimer" no frontend e no payload da API: *"Esta análise é um relatório sugestivo gerado por Inteligência Artificial para suporte à decisão clínica. O diagnóstico final e a conduta terapêutica são de responsabilidade exclusiva do cirurgião-dentista."*
+
+---
+
+### 4. O QUE VOCÊ DEVE GERAR AGORA:
+Por favor, forneça as seguintes entregas em blocos de código limpos, comentados e modulares:
+
+1. **Árvore de Diretórios (Arquitetura):** A estrutura de pastas ideal para este projeto unificado ou separado em `/backend` e `/frontend`.
+2. **`requirements.txt`:** As dependências necessárias para o backend Python (FastAPI, uvicorn, ultralytics, etc).
+3. **Código do Backend (`main.py`):** Um servidor FastAPI com um endpoint POST `/api/v1/analyze` que:
+   - Receba a imagem do raio-X.
+   - Simule ou carregue o modelo YOLO (escreva o código estruturado para carregar o modelo fictício ou real `dentex_yolo.pt`).
+   - Processe as caixas de detecção (`xyxy`, `conf`, `cls`).
+   - Cruze o ID da classe com a **Matriz de Regras Clínicas** acima.
+   - Retorne o JSON com as coordenadas normalizadas e as respectivas sugestões em português.
+4. **Exemplo do Payload JSON de Retorno:** Como será o formato exato da resposta que o Frontend vai receber.
+
+Aja como um desenvolvedor experiente e escreva códigos prontos para produção.

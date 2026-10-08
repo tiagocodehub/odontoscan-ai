@@ -1,0 +1,37 @@
+[project]
+name = "odontoscan-ai-backend"
+version = "0.1.0"
+description = "Protótipo de pesquisa: API de apoio à decisão para radiografias odontológicas (FastAPI + ONNX Runtime, com adaptador stub determinístico)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "OdontoScan AI" }]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "pydantic-settings",
+    "python-multipart",
+    "numpy",
+    "opencv-python-headless",
+    "pillow",
+    "pydicom",
+    "onnxruntime",
+    "httpx",
+    "sqlmodel",
+    "bcrypt",
+    "PyJWT",
+    "email-validator",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = "-ra"
+
+[tool.setuptools]
+packages = ["app"]

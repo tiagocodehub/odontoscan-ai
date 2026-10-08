@@ -1,0 +1,37 @@
+# Segredos e configuração local (NUNCA versionar)
+.env
+.env.*
+!.env.example
+
+# Banco de dados local (dados pessoais/sensíveis)
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Backend
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/data/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+*.tsbuildinfo
+
+# Sistema/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Publicação GitHub (2026-10-08) ---
+# 🚨 Dados de pacientes (LGPD art. 11 - dado sensível de saúde): NUNCA versionar
+img/
+# Contexto interno de agentes
+memory/
